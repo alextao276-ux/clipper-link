@@ -1,9 +1,18 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Clipper</title><style>body{background:#080b11;color:#e8ebf0;font:16px system-ui,sans-serif;display:grid;place-items:center;height:100vh;margin:0;text-align:center}
-a{color:#ff3c4a;font-weight:700}small{color:#7f8b9c}</style></head><body><div><h2>Opening Clipper…</h2><p id="m"><small>finding the laptop</small></p></div>
+a{color:#ff3c4a;font-weight:700}small{color:#7f8b9c}</style></head><body><div><h2 id="h">Opening Clipper…</h2><p id="m"><small>finding the laptop</small></p></div>
 <script>
-fetch('link.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{
-  document.getElementById('m').innerHTML='<a href="'+d.url+'">Tap here if it doesn't open</a><br><small>link updated '+new Date(d.at*1000).toLocaleString()+'</small>';
-  location.replace(d.url);
-}).catch(()=>{document.getElementById('m').innerHTML='<small>Couldn't reach the link. If Clipper just restarted, wait a minute and refresh.</small>'});
+// Finds Clipper's current address and only goes there once it actually answers. If the laptop is off or
+// Clipper is restarting, it waits here and keeps checking - leave this page open and it opens by itself.
+const m=document.getElementById('m'),h=document.getElementById('h');let tries=0;
+function alive(u){return new Promise(ok=>{const i=new Image();const t=setTimeout(()=>ok(false),8000);
+  i.onload=()=>{clearTimeout(t);ok(true)};i.onerror=()=>{clearTimeout(t);ok(false)};i.src=u+'/favicon.ico?t='+Date.now()})}
+async function go(){tries++;
+  try{const d=await fetch('link.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());
+    if(await alive(d.url)){h.textContent='Opening Clipper…';location.replace(d.url);return}
+    h.textContent='Clipper is offline right now';
+    m.innerHTML='<small>The laptop might be asleep, or Clipper is restarting.<br>Leave this page open - it opens Clipper by itself as soon as it is back.<br>Checked '+tries+'x · last address '+new Date(d.at*1000).toLocaleTimeString()+'</small>'}
+  catch(e){m.innerHTML='<small>Cannot reach the link yet, retrying…</small>'}
+  setTimeout(go,10000)}
+go();
 </script></body></html>

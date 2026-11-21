@@ -8,11 +8,12 @@ const m=document.getElementById('m'),h=document.getElementById('h');let tries=0;
 function alive(u){return new Promise(ok=>{const i=new Image();const t=setTimeout(()=>ok(false),8000);
   i.onload=()=>{clearTimeout(t);ok(true)};i.onerror=()=>{clearTimeout(t);ok(false)};i.src=u+'/favicon.ico?t='+Date.now()})}
 async function go(){tries++;
-  try{const d=await fetch('link.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json());
+  try{const ac=new AbortController();const to=setTimeout(()=>ac.abort(),8000);
+    const d=await fetch('link.json?t='+Date.now(),{cache:'no-store',signal:ac.signal}).then(r=>r.json());clearTimeout(to);
     if(await alive(d.url)){h.textContent='Opening Clipper…';location.replace(d.url);return}
     h.textContent='Clipper is offline right now';
     m.innerHTML='<small>The laptop might be asleep, or Clipper is restarting.<br>Leave this page open - it opens Clipper by itself as soon as it is back.<br>Checked '+tries+'x · last address '+new Date(d.at*1000).toLocaleTimeString()+'</small>'}
-  catch(e){m.innerHTML='<small>Cannot reach the link yet, retrying…</small>'}
+  catch(e){h.textContent='Opening Clipper…';m.innerHTML='<small>Still looking for the laptop (try '+tries+')… this page keeps trying by itself.</small>'}
   setTimeout(go,10000)}
 go();
 </script></body></html>

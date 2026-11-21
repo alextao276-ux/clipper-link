@@ -4,16 +4,25 @@ a{color:#ff3c4a;font-weight:700}small{color:#7f8b9c}</style></head><body><div><h
 <script>
 // Finds Clipper's current address and only goes there once it actually answers. If the laptop is off or
 // Clipper is restarting, it waits here and keeps checking - leave this page open and it opens by itself.
-const m=document.getElementById('m'),h=document.getElementById('h');let tries=0;
-function alive(u){return new Promise(ok=>{const i=new Image();const t=setTimeout(()=>ok(false),8000);
+const m=document.getElementById('m'),h=document.getElementById('h');let tries=0,lastApi=0;
+const OWNER=location.hostname.split('.')[0],REPO=location.pathname.split('/')[1];
+function alive(u){return new Promise(ok=>{const i=new Image();const t=setTimeout(()=>ok(false),9000);
   i.onload=()=>{clearTimeout(t);ok(true)};i.onerror=()=>{clearTimeout(t);ok(false)};i.src=u+'/favicon.ico?t='+Date.now()})}
-async function go(){tries++;
-  try{const ac=new AbortController();const to=setTimeout(()=>ac.abort(),8000);
-    const d=await fetch('link.json?t='+Date.now(),{cache:'no-store',signal:ac.signal}).then(r=>r.json());clearTimeout(to);
-    if(await alive(d.url)){h.textContent='Opening Clipper…';location.replace(d.url);return}
-    h.textContent='Clipper is offline right now';
-    m.innerHTML='<small>The laptop might be asleep, or Clipper is restarting.<br>Leave this page open - it opens Clipper by itself as soon as it is back.<br>Checked '+tries+'x · last address '+new Date(d.at*1000).toLocaleTimeString()+'</small>'}
-  catch(e){h.textContent='Opening Clipper…';m.innerHTML='<small>Still looking for the laptop (try '+tries+')… this page keeps trying by itself.</small>'}
-  setTimeout(go,10000)}
+function get(u,ms){const ac=new AbortController();const to=setTimeout(()=>ac.abort(),ms);
+  return fetch(u,{cache:'no-store',signal:ac.signal}).then(r=>{clearTimeout(to);if(!r.ok)throw 0;return r.json()})}
+async function fresh(){
+  // GitHub's website copy can lag up to 10 minutes; its API has the address the second Clipper saves it
+  if(Date.now()-lastApi<30000)return null;lastApi=Date.now();
+  try{const j=await get('https://api.github.com/repos/'+OWNER+'/'+REPO+'/contents/link.json?t='+Date.now(),8000);
+    return JSON.parse(atob(j.content.replace(/[^A-Za-z0-9+/=]/g,'')))}catch(e){return null}}
+async function go(){tries++;let d=null;
+  try{d=await get('link.json?t='+Date.now(),8000)}catch(e){}
+  if(d&&await alive(d.url)){location.replace(d.url);return}
+  const f=await fresh();
+  if(f&&(!d||f.url!==d.url)){d=f;if(await alive(f.url)){location.replace(f.url);return}}
+  if(d){h.textContent='Clipper is offline right now';
+    m.innerHTML='<small>The laptop might be asleep, or Clipper is restarting.<br>Leave this page open - it opens Clipper by itself as soon as it is back.<br>Checked '+tries+'x · address from '+new Date(d.at*1000).toLocaleTimeString()+'</small>'}
+  else{h.textContent='Opening Clipper…';m.innerHTML='<small>Still looking for the laptop (try '+tries+')… this page keeps trying by itself.</small>'}
+  setTimeout(go,8000)}
 go();
 </script></body></html>
